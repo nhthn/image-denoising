@@ -1,12 +1,15 @@
 module LpgPca
 
+# faster equivalent of diag(A * B)
+mul_diagonal(A, B) = sum(A .* B', 2)
+
 function denoise(
         image,
         x::Int,
         y::Int;
         K=5, # Size of analysis block
         L=19, # Size of training block
-        σ=0.15 # Noise standard deviation
+        σ=0.1 # Noise standard deviation
     )
 
     const halfK = div(K, 2)
@@ -14,11 +17,14 @@ function denoise(
     # Dimension of each block vector (= number of rows in the training matrix)
     const m = K^2
 
+    # Number of columns in the training matrix
+    const n = m * 8 + 1
+
     # Get the K*K analysis block centered around (tx,ty).
-    getblock(tx, ty) = reshape(image[
+    getblock(tx, ty) = image[
         tx - halfK : tx + halfK,
         ty - halfK : ty + halfK
-    ], m)
+    ]
 
     # Target block, centered around (x,y).
     const target = getblock(x, y)
@@ -27,7 +33,7 @@ function denoise(
     mse(block) = mean((block - target) .^ 2)
 
     # Assemble a pool of blocks.
-    blocks = Vector[]
+    blocks = Array{Float64,2}[]
     range = halfL - halfK
     for ty = y - range : y + range
         for tx = x - range : x + range
@@ -40,11 +46,13 @@ function denoise(
         end
     end
     # Sort so that the blocks of least MSE come first.
-    sort!(blocks, by=mse)
+    sort!(blocks, by=mse, alg=PartialQuickSort(n - 1))
 
-    # Construct the training matrix with the target and the best blocks.
-    Xυ = hcat(target, blocks[1:m * 8]...)
-    n = m * 8 + 1
+    # Construct the training matrix with the target and the best blocks reshaped into columns.
+    Xυ = hcat(
+        reshape(target, m),
+        [reshape(block, m) for block in blocks[1:n - 1]]...
+    )
 
     # Decenter the training matrix by subtracting the mean of each row.
     # We will add it back later.
@@ -72,18 +80,18 @@ function denoise(
 
     # Covariance of transformed denoised output
     Ωy = max(Ωyυ - Ωυy, 0)
-    #Ωy = Ωyυ - Ωυy
 
     # Shrinkage coefficients
     w = diag(Ωy) ./ (diag(Ωy) .+ diag(Ωyυ))
 
-    # Transformed denoised output
-    Y = Yυ .* w
+    # Transformed denoised output (we only need the first column)
+    Y1 = Yυ[:,1] .* w
 
-    # Denoised output
-    X = PX' * Y .+ μ
+    # Denoised output (we only need the first column)
+    X1 = PX' * Y1 .+ μ
 
-    X[div(m,2) + 1, 1]
+    # The denoised target pixel is just the middle row
+    X1[div(m,2) + 1]
 end
 
 export denoise

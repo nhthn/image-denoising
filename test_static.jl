@@ -6,7 +6,7 @@ using LpgPca
 # image = load(ARGS[1])
 # image = convert(Image{Gray}, image)
 # image = convert(Array{Float64,2}, image)
-image = rand(100, 100)
+image = rand(60, 60)
 const width, height = size(image)
 
 denoised = copy(image)
