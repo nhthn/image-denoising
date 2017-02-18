@@ -27,7 +27,7 @@ end
 
 for y = 1:height
     for x = 1:width
-        simple = median(x, y, 5)
+        simple = median(x, y, 3)
         newimg[x, y] = simple
     end
 end
