@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
     Canny(blur_gray, edge, 80, 140, 3);
     blur(edge, edge, Size(3, 3));
 
-    median = gray;
+    gray.copyTo(median);
 
     for (int x = 1; x < frame.cols; x++) {
         for (int y = 1; y < frame.rows; y++) {
@@ -37,8 +37,8 @@ int main(int argc, char *argv[]) {
 
     for(int x = 1; x < frame.cols; x++) {
         for(int y = 1; y < frame.rows; y++){
-            const int e = edge.at<uchar>(y, x)/255;
-            blend.at<uchar>(y, x) = (int)((double)(1 - e) * median.at<uchar>(y, x) + (double)e * edge.at<uchar>(y, x));
+            double e = (double)min(edge.at<uchar>(y, x) * 2, 255) / 255.0;
+            blend.at<uchar>(y, x) = (int)((1 - e) * median.at<uchar>(y, x) + e * gray.at<uchar>(y, x));
         }
     }
 
