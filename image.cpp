@@ -1,47 +1,64 @@
 #include <opencv2/opencv.hpp>
+#include <unistd.h>
+#include <iostream>
 
 using namespace cv;
 using namespace std;
 
-int simple_median(Mat *src, int x, int y);
+#define lowThreshold 80
+#define highThreshold 140
+#define kernel_size 3
 
+int image_width;
+int image_height;
 
-Mat frame, gray, blur_gray, edge, canny;
-Mat median(512, 768, CV_8U, Scalar(0, 0, 255));
-Mat blend(512, 768, CV_8U, Scalar(0, 0, 255));
+int center_weighted_median(Mat *src, Mat *dst, Mat *mask, int k, int wc) ;
+int center_weighted_median_pixel(Mat *src, Mat *dst, int x, int y, int k, int wc) ;
+int simple_median(Mat *src, Mat *dst, Mat *mask);
+int simple_median_pixel(Mat *src, Mat *dst, int x, int y);
+int blending(Mat *src_median, Mat* src_gray, Mat* dst, Mat* mask);
+
+// I declare the variables for image processing.
+Mat frame, result_rgb;
+vector<Mat> gray(3), blur_gray(3), edge(3), median(3), blend(3);
+
 
 int main(int argc, char *argv[]) {
 
-    frame = imread("./noisy_lighthouse.png", 1);
+	// loading RGB image
+    frame = imread("./lighthouse_noisy.png", IMREAD_COLOR );
+	image_width = frame.cols;
+	image_height = frame.rows;
 
-    gray.zeros(frame.cols, frame.rows, CV_8U);
+	split(frame,gray);
 
-    cvtColor(frame, gray, CV_BGR2GRAY);
+	for(int i =0; i<3; i++){
 
+    	//Edge detection
+    	blur(gray[i], blur_gray[i], Size(3, 3));
+    	Canny( blur_gray[i], edge[i], lowThreshold, highThreshold, kernel_size );
+    	blur(edge[i], edge[i], Size(3, 3));
 
-    //Edge detection
-    blur(gray, blur_gray, Size(3, 3));
-    //Canny( blur_gray, edge, lowThreshold, lowThreshold*ratio, kernel_size );
-    Canny(blur_gray, edge, 80, 140, 3);
-    blur(edge, edge, Size(3, 3));
+		simple_median(&gray[i], &median[i], &edge[i]);
 
-    median = gray;
+/*
+		// initialization
+    	blend[i] = gray[i];
+    	for(int x = 1; x < frame.cols; x++) {
+    	    for(int y = 1; y < frame.rows; y++){
+            	const float e = edge[i].at<uchar>(y, x)/255; // const is fine
+            	blend[i].at<uchar>(y, x) = (int)((float)(1 - e) * median[i].at<uchar>(y, x) + (float)e * gray[i].at<uchar>(y, x));
+        	}
+    	}
+*/
+	//	blending(&median[i], &gray[i], &blend[i], &edge[i]);
+	blend[i]= gray[i];
 
-    for (int x = 1; x < frame.cols; x++) {
-        for (int y = 1; y < frame.rows; y++) {
-            // If it is not at edge, let us make simple median
-            //if(edge.at<uchar>(y,x) == 0)
-            simple_median(&gray, x, y);
-        }
-    }
+	}
 
-    for(int x = 1; x < frame.cols; x++) {
-        for(int y = 1; y < frame.rows; y++){
-            const int e = edge.at<uchar>(y, x)/255;
-            blend.at<uchar>(y, x) = (int)((double)(1 - e) * median.at<uchar>(y, x) + (double)e * edge.at<uchar>(y, x));
-        }
-    }
+	merge(blend, result_rgb);
 
+	// You can switch whether to display picture on your screen or not, and to save image to the folder or not.
     string dev("dev");
     if (argc > 1 && dev.compare(argv[1]) == 0) {
         namedWindow("original", CV_WINDOW_AUTOSIZE);
@@ -50,22 +67,24 @@ int main(int argc, char *argv[]) {
 
         for (;;) {
             imshow("original", frame);
-            imshow("edge", edge);
+            imshow("edge", edge[0]);
             //imshow("result", median);
-            imshow("result", blend);
+            imshow("result", blend[0]);
             if (waitKey(30) >= 0) {
                 break;
             }
         }
+
     } else {
-        imwrite("edge.jpg", edge);
-        imwrite("result.jpg", blend);
+        imwrite("rgbresult.jpg", result_rgb);
     }
 
     return 0;
 }
 
 
+
+// It is used for simple_median
 int compare(const void* a, const void* b){
     if (*(int*)a > *(int*)b) {
         return 1;
@@ -76,26 +95,83 @@ int compare(const void* a, const void* b){
     return -1;
 }
 
-int simple_median(Mat *src, int x, int y) {
 
-    //static int counter=0;
-    const int k = 3;
+int center_weighted_median(Mat *src, Mat *dst, Mat *mask, int k, int wc) {
+	//initialization
+	*dst=*src;
+
+    for (int x = 1; x < image_width; x++) {
+        for (int y = 1; y < image_height; y++) {
+            // If it is not at edge, let us make simple median
+            if(mask->at<uchar>(y,x) == 0)
+            	center_weighted_median_pixel(src, dst, x, y, k , wc);
+        }
+	}
+
+	return 0;
+}
+
+
+int center_weighted_median_pixel(Mat *src, Mat *dst, int x, int y, int k, int wc) {
+
     const int k2 = k * k;
-    int array[k2] = {2, 4, 1, 5, 2, 5, 3, 6, 6};
+	const int arr_size=k2+wc-1;
+    int arr[arr_size];
 
     int g = 0;
-    // We convert from 2dimension array to one array
+    // We convert from 2dimension array to one array.
     for (int j = -1; j <= 1; j++) {
         for (int i = -1; i <= 1; i++) {
-            array[g] = src->at<uchar>(y + j, x + i);
-            g++;
+            arr[g++] = src->at<uchar>(y + j, x + i);
         }
     }
+	for(int c=0;c<wc-1;c++)
+		arr[g++] = src->at<uchar>(y,x);
 
-    // We identify the simple median.
-    qsort(array, k2, sizeof(int), compare);
 
-    median.at<uchar>(y, x) = array[k2 / 2];
+    // We identify the center weighted median.
+    qsort(arr, k2, sizeof(int), compare);
+
+    dst->at<uchar>(y, x) = arr[k2 / 2];
 
     return 0;
 }
+
+
+int simple_median(Mat *src, Mat *dst, Mat* mask){
+	//initialization
+	*dst=*src;
+
+    for (int x = 1; x < image_width; x++) {
+        for (int y = 1; y < image_height; y++) {
+            // If it is not at edge, let us make simple median
+            if(mask->at<uchar>(y,x) == 0)
+            	simple_median_pixel(src, dst, x, y);
+        }
+	}
+	return 0;
+}
+
+// It carries out the simple_median calculation for each pixel
+// simple median assumes k=3 ,wc =1
+int simple_median_pixel(Mat *src, Mat *dst, int x, int y) {
+	return  center_weighted_median_pixel(src, dst, x, y, 3,1) ; 
+}
+
+
+int blending(Mat *src_median, Mat* src_gray, Mat* dst, Mat* mask){
+
+		// initialization
+	*dst = *src_gray;
+
+   	for(int x = 1; x < image_width; x++) {
+   	    for(int y = 1; y < image_height; y++){
+           	const float e = mask->at<uchar>(y, x)/255; // const is fine
+           	dst->at<uchar>(y, x) = (int)((float)(1 - e) * src_median->at<uchar>(y, x) + (float)e * src_gray->at<uchar>(y, x));
+       	}
+	}
+
+	return 0;
+}
+
+
