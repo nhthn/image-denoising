@@ -12,8 +12,7 @@ int simple_median(Mat *src, int x , int y);
 
 int main(int argc, char *argv[]){
 
-  frame=imread("./noisy_lighthouse.jpg", 1);
- 	//frame=imread("./example.jpg", 1);
+  frame=imread("./noisy_lighthouse.png", 1);
 
 	gray.zeros(frame.cols, frame.rows, CV_8U);
 
@@ -42,6 +41,9 @@ median = gray;
 		blend.at<uchar>(y,x) = (int) ((double)(1-e) * median.at<uchar>(y,x) + (double)e * edge.at<uchar>(y,x));
 	}}
 
+//
+string dev("dev");
+if(argc > 1 && dev.compare(argv[1]) == 0){
     namedWindow("original",CV_WINDOW_AUTOSIZE);
     namedWindow("result",CV_WINDOW_AUTOSIZE);
     namedWindow("edge",CV_WINDOW_AUTOSIZE);
@@ -53,6 +55,11 @@ median = gray;
 	imshow("result", blend);
         if(waitKey(30) >= 0) break;
     }
+}else{
+
+	imwrite("edge.jpg", edge);
+	imwrite("result.jpg", blend);
+}
 
     return 0; }
 
