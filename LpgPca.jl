@@ -9,7 +9,7 @@ function denoise(
         y::Int;
         K=5, # Size of analysis block
         L=19, # Size of training block
-        σ=0.1 # Noise standard deviation
+        σ=0.015 # Noise standard deviation
     )
 
     const halfK = div(K, 2)
