@@ -3,6 +3,24 @@ This project is an investigation into the topic of image denoising. We implement
 - A smarter variant of median filtering that uses edge detection.
 - A machine learning algorithm that identifies similar regions of the image and uses principal component analysis to separate noise from them.
 
+## What is image denoising? ##
+
+Example of noise:
+
+![](results/noise.png)
+
+Example of image:
+
+![](results/campus_greyscale.png)
+
+Example of image with noise:
+
+![](results/campus_greyscale_noise.jpg)
+
+Blurring isn't the best:
+
+![](results/gaussian_blur.png)
+
 ## Median filtering with edge detection ##
 
 A median filter replaces the value of each pixel with the median of the surrounding neighborhood of pixels. This algorithm is fairly robust to speckle noise, but can create a blobby "oil painting" effect which is undesirable.
