@@ -18,41 +18,56 @@ int simple_median(Mat *src, Mat *dst, Mat *mask);
 int simple_median_pixel(Mat *src, Mat *dst, int x, int y);
 int blending(Mat *src_median, Mat* src_gray, Mat* dst, Mat* mask);
 
+
+
+int main(int argc, char *argv[]) {
 // I declare the variables for image processing.
 Mat frame, result_rgb;
 vector<Mat> gray(3), blur_gray(3), edge(3), median(3), blend(3);
 
-
-int main(int argc, char *argv[]) {
-
 	// loading RGB image
-    frame = imread("./lighthouse_noisy.png", IMREAD_COLOR );
+    //frame = imread("./lighthouse_noisy.png", IMREAD_COLOR );
+    frame = imread("./campus_noise.jpg", IMREAD_COLOR );
 	image_width = frame.cols;
 	image_height = frame.rows;
 
 	split(frame,gray);
 
-	for(int i =0; i<3; i++){
+	for (int i = 0; i < 3; i++) {
 
     	//Edge detection
     	blur(gray[i], blur_gray[i], Size(3, 3));
-    	Canny( blur_gray[i], edge[i], lowThreshold, highThreshold, kernel_size );
+    	Canny(blur_gray[i], edge[i], lowThreshold, highThreshold, kernel_size);
     	blur(edge[i], edge[i], Size(3, 3));
 
-		simple_median(&gray[i], &median[i], &edge[i]);
+	
+		median[i].create(frame.size(), CV_8U);
+    	for(int x = 1; x < frame.cols-1; x++) {
+    	    for(int y = 1; y < frame.rows-1; y++){
+            	//if( (i==0) && (edge[i].at<uchar>(y,x) == 0))
+            	if(  (edge[i].at<uchar>(y,x) == 0))
+					center_weighted_median_pixel(&gray[i], &median[i], x, y, 3,1);
+	}
+}
 
-/*
+cout << "test" << endl;
+
 		// initialization
-    	blend[i] = gray[i];
+		split(frame, gray);
+		//blend[i].create(frame.size(), CV_8U);
+		blend[i]=gray[i];
+
+
     	for(int x = 1; x < frame.cols; x++) {
     	    for(int y = 1; y < frame.rows; y++){
-            	const float e = edge[i].at<uchar>(y, x)/255; // const is fine
-            	blend[i].at<uchar>(y, x) = (int)((float)(1 - e) * median[i].at<uchar>(y, x) + (float)e * gray[i].at<uchar>(y, x));
+            	//const float e = (float)edge[i].at<uchar>(y, x)/255.f; // const is fine
+            	const float e = 0.0;
+            	//blend[i].at<uchar>(y, x) = (int)((float)(1 - e) * median[i].at<uchar>(y, x) + (float)e * gray[i].at<uchar>(y, x));
+            	blend[i].at<uchar>(y, x) = (int)((float)median[i].at<uchar>(y, x));
         	}
     	}
-*/
-	//	blending(&median[i], &gray[i], &blend[i], &edge[i]);
-	blend[i]= gray[i];
+
+		//blending(&median[i], &gray[i], &blend[i], &edge[i]);
 
 	}
 
@@ -77,6 +92,7 @@ int main(int argc, char *argv[]) {
 
     } else {
         imwrite("rgbresult.jpg", result_rgb);
+        imwrite("edgeresult.jpg", gray[2]);
     }
 
     return 0;
@@ -105,6 +121,7 @@ int center_weighted_median(Mat *src, Mat *dst, Mat *mask, int k, int wc) {
             // If it is not at edge, let us make simple median
             if(mask->at<uchar>(y,x) == 0)
             	center_weighted_median_pixel(src, dst, x, y, k , wc);
+		
         }
 	}
 
@@ -160,13 +177,12 @@ int simple_median_pixel(Mat *src, Mat *dst, int x, int y) {
 
 
 int blending(Mat *src_median, Mat* src_gray, Mat* dst, Mat* mask){
-
-		// initialization
+	// initialization
 	*dst = *src_gray;
 
    	for(int x = 1; x < image_width; x++) {
    	    for(int y = 1; y < image_height; y++){
-           	const float e = mask->at<uchar>(y, x)/255; // const is fine
+           	const float e = (float)mask->at<uchar>(y, x) / 255.f;
            	dst->at<uchar>(y, x) = (int)((float)(1 - e) * src_median->at<uchar>(y, x) + (float)e * src_gray->at<uchar>(y, x));
        	}
 	}
