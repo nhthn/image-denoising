@@ -11,7 +11,7 @@ save("before.png", convert(Image{Gray}, image))
 
 stage1 = copy(image)
 
-L = 43
+L = 21
 σ1 = 0.015
 
 halfL = div(L, 2)
