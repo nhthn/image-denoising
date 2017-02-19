@@ -2,7 +2,8 @@ CPP=g++
 
 #CPP_FILES= testcv.cpp
 #CPP_FILES= hoge.cpp
-CPP_FILES= image.cpp
+#CPP_FILES= image.cpp
+CPP_FILES= grayimage.cpp
 #CPP_FILES= testgl.cpp
 #CPP_FILES= main.cpp
 
