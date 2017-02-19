@@ -9,10 +9,10 @@ const width, height = size(image)
 
 save("before.png", convert(Image{Gray}, image))
 
-stage1 = copy(image)
+const stage1 = copy(image)
 
-L = 21
-σ1 = 0.015
+const L = 21
+const σ1 = 0.015
 
 halfL = div(L, 2)
 for y = (1 + halfL) : (height - halfL)
@@ -22,12 +22,12 @@ for y = (1 + halfL) : (height - halfL)
     end
 end
 
-σ2 = 0.35 * sqrt(σ1 - mean((stage1 - image) .^ 2))
+const σ2 = 0.1 * sqrt(σ1 - mean((stage1 - image) .^ 2))
 println("σ2 = ", σ2);
 
 save("medial.png", convert(Image{Gray}, stage1))
 
-stage2 = copy(stage1)
+const stage2 = copy(stage1)
 
 for y = (1 + halfL) : (height - halfL)
     println(y)
